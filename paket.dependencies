@@ -1,0 +1,11 @@
+source https://nuget.org/api/v2
+
+nuget FSharp.Compiler.Tools
+nuget FluentAssertions
+nuget FsCheck
+nuget FSharp.Core
+nuget Microsoft.Owin
+nuget OwinHttpMessageHandler
+nuget xunit.abstractions
+nuget xunit.extensibility.core
+nuget xunit.extensibility.execution

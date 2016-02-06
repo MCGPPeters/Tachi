@@ -1,0 +1,8 @@
+FluentAssertions
+FsCheck
+FSharp.Core
+Microsoft.Owin
+OwinHttpMessageHandler
+xunit.abstractions
+xunit.extensibility.core
+xunit.extensibility.execution

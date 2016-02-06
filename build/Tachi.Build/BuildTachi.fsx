@@ -1,5 +1,4 @@
-﻿//val build : Project -> Configuration -> Assembly
-module BuildTachi
+﻿module BuildTachi
 
 type Configuration = Configuration of string
 

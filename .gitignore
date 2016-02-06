@@ -10,6 +10,12 @@
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+# paket
+.paket/paket.exe
+
+# build tools
+/build/tools/**
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/

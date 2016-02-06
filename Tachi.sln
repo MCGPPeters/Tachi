@@ -5,7 +5,12 @@ VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tachi.Tests", "tests\Tachi.Tests\Tachi.Tests.csproj", "{734CA155-6CE5-4D45-84FD-4E9F4487AD25}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Tachi.Build", "Tachi.Build\Tachi.Build.fsproj", "{9D2ECD7E-1927-42F1-B0AF-BB84AE525429}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{B91CDBC9-85EF-4B80-821B-0C9E6C931A3E}"
+	ProjectSection(SolutionItems) = preProject
+		build.ps1 = build.ps1
+	EndProjectSection
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Tachi.Build", "build\Tachi.Build\Tachi.Build.fsproj", "{9D2ECD7E-1927-42F1-B0AF-BB84AE525429}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
