@@ -446,12 +446,12 @@ namespace Tachi.Tests
             =>
                 (getFileDescriptors, configuredRequestPath) =>
                 {
-                    return next => env =>
+                    return next => async env =>
                     {
                         var owinContext = new OwinContext(env);
 
                         IReadOnlyCollection<FileInfo> foundResourceDescriptors =
-                            new ReadOnlyCollection<FileInfo>(new List<FileInfo>());
+                            new ReadOnlyCollection<FileInfo>(new FileInfo[] {});
 
                         var requestPath = owinContext.Request.Path;
                         if (requestPath.StartsWithSegments(configuredRequestPath))
@@ -465,22 +465,22 @@ namespace Tachi.Tests
                             owinContext.Response.ContentType = GetMediaType(resourceDescriptor);
 
                             if (owinContext.Request.Method == "GET")
-                                owinContext.Response.Body = resourceDescriptor.OpenRead();
+                            {
+                                var fileContentStream = new StreamContent(resourceDescriptor.OpenRead());
+                                await fileContentStream.CopyToAsync(owinContext.Response.Body);
+                            }
+
+                            await Task.FromResult(0);
                         }
                         else
                         {
                             owinContext.Response.StatusCode = 404;
                         }
-
-                        return Task.FromResult(0);
                     };
                 };
+    
 
-
-
-
-
-        [Fact]
+    [Fact]
         public async Task Given_a_file_does_not_exists_returns_not_found()
         {
             GetResourceDescriptors<FileInfo> getFileDescriptorsStub = pathString => new FileInfo[0];
@@ -511,7 +511,7 @@ namespace Tachi.Tests
         }
 
         [Fact]
-        public async Task When_a_HEAD_method_is_used_the_response_should_not_contain_a_body()
+        public async Task When_a_HEAD_method_is_used_the_response_MUST_NOT_contain_a_message_body()
         {
             GetResourceDescriptors<FileInfo> getFileDescriptorsStub =
                 pathString => new List<FileInfo> { new FileInfo("./fixtures/test.xml") };
@@ -530,13 +530,29 @@ namespace Tachi.Tests
             result.Content.Headers.ContentLength.Should().Be(704);
 
             // rfc2616-sec9.4
-            await AssertResponseHasNoMessageBody(result);
-        }
-
-        private static async Task AssertResponseHasNoMessageBody(HttpResponseMessage result)
-        {
             var length = (await result.Content.ReadAsByteArrayAsync()).Length;
             length.Should().Be(0);
+        }
+
+        [Fact]
+        public async Task When_a_GET_method_is_used_the_response_MUST_contain_the_message_body()
+        {
+            GetResourceDescriptors<FileInfo> getFileDescriptorsStub =
+                pathString => new List<FileInfo> { new FileInfo("./fixtures/test.xml") };
+
+            var staticFileHandler = CreateStaticFileHandler(getFileDescriptorsStub, new PathString("/fixtures"));
+            Func<IDictionary<string, object>, Task> appFunc = staticFileHandler.Invoke(Application.NotFound).Invoke;
+            var httpMessageHandler = new OwinHttpMessageHandler(appFunc);
+            var client = new HttpClient(httpMessageHandler);
+            var requestUri = new Uri("http://localhost/fixtures/test.xml");
+
+            var result = await client.GetAsync(requestUri);
+
+            result.StatusCode.Should().Be(HttpStatusCode.OK);
+            result.Content.Headers.ContentType.Should().Be(new MediaTypeHeaderValue("text/xml"));
+            result.Content.Headers.ContentLength.Should().Be(704);
+            var length = (await result.Content.ReadAsStreamAsync()).Length;
+            length.Should().Be(704);
         }
 
         private delegate IReadOnlyCollection<TResourceDescriptor> GetResourceDescriptors<out TResourceDescriptor>(
