@@ -440,8 +440,6 @@ namespace Tachi.Tests
             return MediaTypes[resourceDescriptor.Extension];
         }
 
-        private readonly Application.AppFunc _staticResourceHandler = environment => Task.FromResult(0);
-
         private static Func<GetResourceDescriptors<FileInfo>, PathString, Application.MidFunc> CreateStaticFileHandler
             =>
                 (getFileDescriptors, configuredRequestPath) =>
@@ -485,8 +483,9 @@ namespace Tachi.Tests
         {
             GetResourceDescriptors<FileInfo> getFileDescriptorsStub = pathString => new FileInfo[0];
             var staticFileHandler = CreateStaticFileHandler(getFileDescriptorsStub, new PathString("/path"));
-            Func<IDictionary<string, object>, Task> appFunc = staticFileHandler.Invoke(Application.NotFound).Invoke;
-            var httpMessageHandler = new OwinHttpMessageHandler(appFunc);
+            var applicationPipeline = new List<Application.MidFunc> {staticFileHandler};
+            var appFunc = Application.Build(applicationPipeline);
+            var httpMessageHandler = new OwinHttpMessageHandler(appFunc.Invoke);
             var client = new HttpClient(httpMessageHandler);
 
             var result = await client.GetAsync(new Uri("http://path"));
@@ -500,8 +499,9 @@ namespace Tachi.Tests
         {
             GetResourceDescriptors<FileInfo> getFileDescriptorsStub = pathString => new FileInfo[0];
             var staticFileHandler = CreateStaticFileHandler(getFileDescriptorsStub, new PathString("/ignore"));
-            Func<IDictionary<string, object>, Task> appFunc = staticFileHandler.Invoke(Application.NotFound).Invoke;
-            var httpMessageHandler = new OwinHttpMessageHandler(appFunc);
+            var applicationPipeline = new List<Application.MidFunc> { staticFileHandler };
+            var appFunc = Application.Build(applicationPipeline);
+            var httpMessageHandler = new OwinHttpMessageHandler(appFunc.Invoke);
             var client = new HttpClient(httpMessageHandler);
 
             var result = await client.GetAsync(new Uri("http://any/path"));
@@ -517,8 +517,9 @@ namespace Tachi.Tests
                 pathString => new List<FileInfo> { new FileInfo("./fixtures/test.xml") };
 
             var staticFileHandler = CreateStaticFileHandler(getFileDescriptorsStub, new PathString("/fixtures"));
-            Func<IDictionary<string, object>, Task> appFunc = staticFileHandler.Invoke(Application.NotFound).Invoke;
-            var httpMessageHandler = new OwinHttpMessageHandler(appFunc);
+            var applicationPipeline = new List<Application.MidFunc> { staticFileHandler };
+            var appFunc = Application.Build(applicationPipeline);
+            var httpMessageHandler = new OwinHttpMessageHandler(appFunc.Invoke);
             var client = new HttpClient(httpMessageHandler);
             var requestUri = new Uri("http://localhost/fixtures/test.xml");
             var request = new HttpRequestMessage(HttpMethod.Head, requestUri);
@@ -541,8 +542,9 @@ namespace Tachi.Tests
                 pathString => new List<FileInfo> { new FileInfo("./fixtures/test.xml") };
 
             var staticFileHandler = CreateStaticFileHandler(getFileDescriptorsStub, new PathString("/fixtures"));
-            Func<IDictionary<string, object>, Task> appFunc = staticFileHandler.Invoke(Application.NotFound).Invoke;
-            var httpMessageHandler = new OwinHttpMessageHandler(appFunc);
+            var applicationPipeline = new List<Application.MidFunc> { staticFileHandler };
+            var appFunc = Application.Build(applicationPipeline);
+            var httpMessageHandler = new OwinHttpMessageHandler(appFunc.Invoke);
             var client = new HttpClient(httpMessageHandler);
             var requestUri = new Uri("http://localhost/fixtures/test.xml");
 

@@ -11,18 +11,27 @@ namespace Tachi.Tests
     {
         public delegate Task AppFunc(IDictionary<string, object> environment);
         public delegate AppFunc MidFunc(AppFunc appFunc);
-        public delegate MidFunc Create<T>(T configuration);
-        public static AppFunc NotFound => env =>
+
+        private static AppFunc NotFound => env =>
         {
             env["owin.ResponseStatusCode"] = 404;
             return Task.FromResult(0);
         };
 
-        public static Func<IEnumerable<MidFunc>, MidFunc> Compose =>
+        private static Func<IEnumerable<MidFunc>, MidFunc> Compose =>
             pipeline =>
                 pipeline.Aggregate((current, next)
                     => appFunc
                         => current(next(appFunc)));
+
+        /// <summary>
+        /// Builds the application function from a set of pipeline off middleware functions. An application function is always terminated
+        /// by a middleware that returns 404 NotFound. This indicates that there was no middleware found that
+        /// would handle the request.
+        /// </summary>
+        /// <value>
+        /// The build.
+        /// </value>
         public static Func<IEnumerable<MidFunc>, AppFunc> Build => pipeline => Compose(pipeline)(NotFound);
         public static Func<AppFunc, Environment, Task> Run => (appFunc, env) => appFunc(env);
     }
