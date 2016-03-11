@@ -1,0 +1,1 @@
+﻿HttpProblemDetails.cs is created by Damian Hickey as part of Cedar HttpCommandHandling and usage is permitted under the MIT license  : https://github.com/damianh/Cedar.CommandHandling/blob/master/LICENSE 
