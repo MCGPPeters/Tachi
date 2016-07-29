@@ -10,9 +10,15 @@ type SemVer = {
     patch : int
 }
 
+open System.IO
+
 type Assembly = {
-    Version: SemVer
+    version: SemVer
+    fileSystemInfo : FileSystemInfo
 }
+
+type Artefact =
+    | Assembly of Assembly
 
 type Project = {
     name : string
@@ -20,9 +26,8 @@ type Project = {
     guid : string
     tags : Tag list
     path : string
+    artefacts : Artefact list
 }
-
-open System.IO
 
 type todo = unit
 
@@ -70,13 +75,22 @@ let tryTo doSomething =
 
 type CompileError = CompileError of Exception
 
+type CleanError = CleanError of Exception
+
+type DeleteArtefactError = DeleteArtefactError of Exception
+
 type CompileFailed = Project * CompileError list
 
-type BuildFailureCause = 
-    | CleanFailed of FileSystemInfo
-    | CompileFailed of CompileFailed
+type DeleteArtefactFailed = Artefact * DeleteArtefactError list
 
-type CleanInput = todo
+type CleanFailed = Project * CleanError list
+
+type BuildFailureCause = 
+    | CleanFailed of CleanFailed
+    | CompileFailed of CompileFailed
+    | DeleteArtefactFailed of DeleteArtefactFailed
+
+type CleanInput = Project list
 
 type CompileInput = Project list
 
@@ -100,37 +114,89 @@ type BuildState =
     | WritingBuildResult of BuildResult<BuildState>
     | Done
 
+let delete artefact =
+    match artefact with
+    | Assembly assembly -> 
+        match tryTo (assembly.fileSystemInfo.Delete()) with
+        | Success _ -> Success artefact
+        | Failure causes -> 
+            let errors = 
+                causes 
+                |> List.map (fun cause -> 
+                    DeleteArtefactError cause)
+            Failure [DeleteArtefactFailed (artefact, errors)]
+
+let clean project =
+    project.artefacts 
+        |> List.map (fun artefact -> 
+            match tryTo (delete artefact) with
+            | Success a -> Success artefact
+            | Failure causes -> 
+                let errors = 
+                    causes 
+                    |> List.map (fun cause -> 
+                        CleanError cause)
+                Failure [CleanFailed (project, errors)])
+
+let clean projects =
+    projects 
+    |> List.map (fun project ->
+         match tryTo (clean project) with
+         | Success a -> Success project
+         | Failure causes -> 
+            let errors = 
+                causes 
+                |> List.map (fun cause -> 
+                    CleanError cause)
+            Failure [CleanFailed (project, errors)])
+    
+
 let compile cleanResult compile testInput =
     match cleanResult with
     | Success projects -> 
         projects 
         |> List.map (fun project ->
             match tryTo (compile project) with
-            | Success assemblies ->
-                Success assemblies
+            | Success artefacts ->
+                Success artefacts
             | Failure causes -> 
-                let compileErrors = 
+                let errors = 
                        causes 
                        |> List.map (fun cause -> 
                             CompileError cause)
-                Failure [CompileFailed (project, compileErrors)])
+                Failure [CompileFailed (project, errors)])
     | Failure causes -> 
         causes
         |> List.map (fun cause -> 
             Failure ([CleanFailed cause]))
 
-let writeOutput buildResult write = 
+let writeOutput buildResult output = 
     match buildResult with
     | Success _ -> 
-        tryTo (write "Build succeeded" )
+        tryTo (output "Build succeeded" )
     | Failure causes -> 
         causes
         |> List.map (fun cause -> 
                 match cause with
-                | CleanFailed directoryInfo -> sprintf "Failed to delete directory '%s'" directoryInfo.FullName
+                | CleanFailed (project, cleanErrors) -> 
+                    sprintf "Failed to clean the artefacts for project '%s' because of the following errors '%s' " project.name
+                        (cleanErrors 
+                            |> List.fold (fun currentMessage nextMessage -> 
+                                currentMessage + ("\r\n" + nextMessage.ToString())) "")
                 | CompileFailed (project, compilerErrors) -> 
                     sprintf "Failed to compile project '%s' because of the following errors '%s'" project.name (compilerErrors 
                         |> List.fold (fun currentMessage nextMessage -> 
                             currentMessage + ("\r\n" + nextMessage.ToString())) ""))
         |> List.fold (fun currentMessage nextMessage -> currentMessage + ("\r\n" + nextMessage)) ""
-        |> fun x -> tryTo (write x)
+        |> fun errorMessage -> tryTo (output errorMessage)
+
+let p1 = {
+    name = ""
+    description = ""
+    guid = ""
+    tags = []
+    path = ""
+    artefacts = []
+    }
+
+let build = bind (clean [p1]) (writeOutput Console.Write)
